@@ -1,0 +1,106 @@
+dim_date = 
+VAR TodayDate = TODAY()
+VAR StartDate = DATE( YEAR(TodayDate) - 2, MONTH(TodayDate), DAY(TodayDate) )
+VAR EndDate   = DATE( YEAR(TodayDate) + 1, MONTH(TodayDate), DAY(TodayDate) )
+
+VAR MinYear = YEAR ( StartDate )
+VAR MinYM   = YEAR ( StartDate ) * 12 + MONTH ( StartDate )
+VAR MaxDate = TodayDate
+VAR MaxYM   = YEAR ( MaxDate ) * 12 + MONTH ( MaxDate )
+
+RETURN
+ADDCOLUMNS (
+    CALENDAR ( StartDate, EndDate ),
+
+    /* Core */
+    "Year", YEAR ( [Date] ),
+    "Year Index", YEAR ( [Date] ) - MinYear + 1,
+
+    "Quarter", "Q" & QUARTER ( [Date] ),
+
+    "Month Number", MONTH ( [Date] ),
+    "Month (Short)", FORMAT ( [Date], "mmm" ),
+
+    "Year-Month", FORMAT ( [Date], "YYYY-MM" ),
+    "Year-Month Key", YEAR ( [Date] ) * 100 + MONTH ( [Date] ),
+
+    /* Indexes */
+    "Year-Month Index",
+        VAR CurYM = YEAR ( [Date] ) * 12 + MONTH ( [Date] )
+        RETURN CurYM - MinYM + 1,
+
+    /* Day / weekday */
+    "Day of Month", DAY ( [Date] ),
+
+    "Weekday Number", WEEKDAY ( [Date], 2 ),   -- Mon=1
+    "Weekday (Short)", FORMAT ( [Date], "ddd" ),
+    "Is Weekend", WEEKDAY ( [Date], 2 ) >= 6,
+
+    /* Week (ISO) */
+    "Week Start (Mon)", [Date] - WEEKDAY ( [Date], 2 ) + 1,
+    "Week End (Sun)",   [Date] - WEEKDAY ( [Date], 2 ) + 7,
+
+    "ISO Week Number", WEEKNUM ( [Date], 21 ),
+
+    "ISO Year",
+        VAR _isoWeek = WEEKNUM ( [Date], 21 )
+        VAR _m = MONTH ( [Date] )
+        VAR _y = YEAR ( [Date] )
+        RETURN
+            _y
+            + IF ( _m = 1 && _isoWeek >= 52, -1, 0 )
+            + IF ( _m = 12 && _isoWeek = 1,  1, 0 ),
+
+    "ISO Year-Week",
+        VAR _isoWeek = WEEKNUM ( [Date], 21 )
+        VAR _m = MONTH ( [Date] )
+        VAR _y = YEAR ( [Date] )
+        VAR _isoYear =
+            _y
+            + IF ( _m = 1 && _isoWeek >= 52, -1, 0 )
+            + IF ( _m = 12 && _isoWeek = 1,  1, 0 )
+        RETURN FORMAT ( _isoYear, "0000" ) & "-W" & FORMAT ( _isoWeek, "00" ),
+
+    "ISO Year-Week Key",
+        VAR _isoWeek = WEEKNUM ( [Date], 21 )
+        VAR _m = MONTH ( [Date] )
+        VAR _y = YEAR ( [Date] )
+        VAR _isoYear =
+            _y
+            + IF ( _m = 1 && _isoWeek >= 52, -1, 0 )
+            + IF ( _m = 12 && _isoWeek = 1,  1, 0 )
+        RETURN _isoYear * 100 + _isoWeek,
+
+    "Year-Week Index",
+        VAR _wkStart = [Date] - WEEKDAY ( [Date], 2 ) + 1
+        VAR _minWkStart = StartDate - WEEKDAY ( StartDate, 2 ) + 1
+        RETURN INT ( ( _wkStart - _minWkStart ) / 7 ) + 1,
+
+    /* Rolling month flags (anchored to TODAY) */
+    "In Last 3 Months",
+        VAR CurYM = YEAR ( [Date] ) * 12 + MONTH ( [Date] )
+        RETURN CurYM >= ( MaxYM - 2 ) && CurYM <= MaxYM,
+
+    "In Last 6 Months",
+        VAR CurYM = YEAR ( [Date] ) * 12 + MONTH ( [Date] )
+        RETURN CurYM >= ( MaxYM - 5 ) && CurYM <= MaxYM,
+
+    "In Last 12 Months",
+        VAR CurYM = YEAR ( [Date] ) * 12 + MONTH ( [Date] )
+        RETURN CurYM >= ( MaxYM - 11 ) && CurYM <= MaxYM,
+
+    /* Period-to-date (anchored to TODAY) */
+    "In Month-to-Date (MTD)",
+        YEAR ( [Date] ) = YEAR ( MaxDate )
+            && MONTH ( [Date] ) = MONTH ( MaxDate )
+            && [Date] <= MaxDate,
+
+    "In Quarter-to-Date (QTD)",
+        YEAR ( [Date] ) = YEAR ( MaxDate )
+            && QUARTER ( [Date] ) = QUARTER ( MaxDate )
+            && [Date] <= MaxDate,
+
+    "In Year-to-Date (YTD)",
+        YEAR ( [Date] ) = YEAR ( MaxDate )
+            && [Date] <= MaxDate
+)
